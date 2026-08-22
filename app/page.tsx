@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 const SAMPLE = `Reading doesn't have to mean slowing down. Rapid keeps your eyes in one place while the words find you. Paste an article, a report, or your own notes, choose a pace, and let your focus settle in.`;
+const MINIMUM_ARTICLE_WORDS = 80;
+const RANDOM_ARTICLE_URL = "https://en.wikipedia.org/w/api.php?action=query&format=json&generator=random&grnnamespace=0&prop=extracts&explaintext=1&exsectionformat=plain&exchars=15000&origin=*";
 
 type WikipediaResponse = {
   query?: { pages?: Record<string, { title?: string; extract?: string }> };
@@ -10,8 +12,8 @@ type WikipediaResponse = {
 
 function sanitizeWikipediaText(value: string) {
   return value
+    .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, " ")
     .replace(/\[[^\]]*\]/g, " ")
-    .replace(/={2,}[^=]+={2,}/g, " ")
     .replace(/\s+/g, " ")
     .trim()
     .slice(0, 15000);
@@ -34,6 +36,7 @@ export default function Home() {
   const [wpm, setWpm] = useState(300);
   const [playing, setPlaying] = useState(false);
   const [sourceTitle, setSourceTitle] = useState("");
+  const [sourceUrl, setSourceUrl] = useState("");
   const [isFindingArticle, setIsFindingArticle] = useState(false);
   const [articleError, setArticleError] = useState("");
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -55,25 +58,30 @@ export default function Home() {
     setWords([]);
     setIndex(0);
     setSourceTitle("");
+    setSourceUrl("");
   }, []);
 
   const loadRandomArticle = useCallback(async () => {
     setIsFindingArticle(true);
     setArticleError("");
     try {
-      const response = await fetch(
-        "https://en.wikipedia.org/w/api.php?action=query&format=json&generator=random&grnnamespace=0&prop=extracts&explaintext=1&exsectionformat=plain&exchars=15000&origin=*",
-      );
-      if (!response.ok) throw new Error("Wikipedia is unavailable right now.");
-      const payload = (await response.json()) as WikipediaResponse;
-      const page = Object.values(payload.query?.pages ?? {})[0];
-      const cleanedText = sanitizeWikipediaText(page?.extract ?? "");
-      if (cleanedText.split(/\s+/).filter(Boolean).length < 12) {
-        throw new Error("That page was too short. Try another one.");
+      for (let attempt = 0; attempt < 4; attempt += 1) {
+        const response = await fetch(RANDOM_ARTICLE_URL);
+        if (!response.ok) throw new Error("Wikipedia is unavailable right now.");
+        const payload = (await response.json()) as WikipediaResponse;
+        const page = Object.values(payload.query?.pages ?? {})[0];
+        const cleanedText = sanitizeWikipediaText(page?.extract ?? "");
+        const wordCount = cleanedText.split(/\s+/).filter(Boolean).length;
+        if (wordCount < MINIMUM_ARTICLE_WORDS) continue;
+
+        const title = page?.title ?? "A random Wikipedia article";
+        setText(cleanedText);
+        setSourceTitle(title);
+        setSourceUrl(`https://en.wikipedia.org/wiki/${encodeURIComponent(title.replace(/ /g, "_"))}`);
+        begin(cleanedText);
+        return;
       }
-      setText(cleanedText);
-      setSourceTitle(page?.title ?? "A random Wikipedia article");
-      begin(cleanedText);
+      throw new Error("Couldn’t find a readable article. Please try again.");
     } catch (error) {
       setArticleError(error instanceof Error ? error.message : "Couldn’t load an article. Please try again.");
     } finally {
@@ -117,7 +125,10 @@ export default function Home() {
       <header className="topbar">
         <button className="brand" onClick={reset} aria-label="Rapid home"><span>R</span>APID</button>
         <div className="eyebrow">RSVP READER</div>
-        {reading && <button className="text-button" onClick={reset}>New text <span>↗</span></button>}
+        {reading && <div className="top-actions">
+          {sourceTitle && <button className="text-button" disabled={isFindingArticle} onClick={loadRandomArticle}>{isFindingArticle ? "Finding…" : "Another article"}</button>}
+          <button className="text-button" onClick={reset}>New text <span>↗</span></button>
+        </div>}
       </header>
 
       {!reading ? (
@@ -130,10 +141,10 @@ export default function Home() {
 
           <div className="composer">
             <div className="composer-label"><label htmlFor="source">Paste your text</label><span>{text.trim() ? text.trim().split(/\s+/).length : 0} words</span></div>
-            <textarea id="source" value={text} onChange={(event) => { setText(event.target.value); setSourceTitle(""); }} placeholder="Drop in an article, notes, or anything you want to read…" autoFocus />
+            <textarea id="source" value={text} onChange={(event) => { setText(event.target.value); setSourceTitle(""); setSourceUrl(""); }} placeholder="Drop in an article, notes, or anything you want to read…" autoFocus />
             <div className="composer-footer">
               <div className="composer-actions">
-                <button className="sample" onClick={() => { setText(SAMPLE); setSourceTitle(""); }}>Use sample text</button>
+                <button className="sample" onClick={() => { setText(SAMPLE); setSourceTitle(""); setSourceUrl(""); }}>Use sample text</button>
                 <button className="random" disabled={isFindingArticle} onClick={loadRandomArticle}>{isFindingArticle ? "Finding an article…" : "Random Wikipedia"}</button>
               </div>
               <button className="primary" disabled={!text.trim()} onClick={() => begin()}>Start reading <span>→</span></button>
@@ -148,7 +159,8 @@ export default function Home() {
             <div><span className="meta-label">PACE</span><strong>{wpm} <small>WPM</small></strong></div>
             <div className="count"><span className="meta-label">PROGRESS</span><strong>{index + 1} <small>/ {words.length}</small></strong></div>
           </div>
-          {sourceTitle && <p className="article-title">Wikipedia / <span>{sourceTitle}</span></p>}
+          {sourceTitle && <p className="article-title">Wikipedia / {sourceUrl ? <a href={sourceUrl} target="_blank" rel="noreferrer">{sourceTitle} ↗</a> : <span>{sourceTitle}</span>}</p>}
+          {articleError && <p className="reader-error" role="alert">{articleError}</p>}
 
           <div className="word-stage" aria-live="polite" aria-atomic="true">
             <span className="guide top" />
