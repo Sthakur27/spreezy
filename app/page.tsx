@@ -10,6 +10,14 @@ type WikipediaResponse = {
   query?: { pages?: Record<string, { title?: string; extract?: string }> };
 };
 
+type PendingArticle = {
+  title: string;
+  text: string;
+  url: string;
+  preview: string;
+  wordCount: number;
+};
+
 function sanitizeWikipediaText(value: string) {
   return value
     .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, " ")
@@ -17,6 +25,11 @@ function sanitizeWikipediaText(value: string) {
     .replace(/\s+/g, " ")
     .trim()
     .slice(0, 15000);
+}
+
+function makePreview(value: string) {
+  const sentence = value.match(/^.{100,500}?[.!?](?=\s|$)/)?.[0];
+  return sentence ?? `${value.slice(0, 420).trimEnd()}…`;
 }
 
 function splitWord(word: string) {
@@ -37,6 +50,7 @@ export default function Home() {
   const [playing, setPlaying] = useState(false);
   const [sourceTitle, setSourceTitle] = useState("");
   const [sourceUrl, setSourceUrl] = useState("");
+  const [pendingArticle, setPendingArticle] = useState<PendingArticle | null>(null);
   const [isFindingArticle, setIsFindingArticle] = useState(false);
   const [articleError, setArticleError] = useState("");
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -59,6 +73,7 @@ export default function Home() {
     setIndex(0);
     setSourceTitle("");
     setSourceUrl("");
+    setPendingArticle(null);
   }, []);
 
   const loadRandomArticle = useCallback(async () => {
@@ -75,10 +90,13 @@ export default function Home() {
         if (wordCount < MINIMUM_ARTICLE_WORDS) continue;
 
         const title = page?.title ?? "A random Wikipedia article";
-        setText(cleanedText);
-        setSourceTitle(title);
-        setSourceUrl(`https://en.wikipedia.org/wiki/${encodeURIComponent(title.replace(/ /g, "_"))}`);
-        begin(cleanedText);
+        setPendingArticle({
+          title,
+          text: cleanedText,
+          url: `https://en.wikipedia.org/wiki/${encodeURIComponent(title.replace(/ /g, "_"))}`,
+          preview: makePreview(cleanedText),
+          wordCount,
+        });
         return;
       }
       throw new Error("Couldn’t find a readable article. Please try again.");
@@ -87,7 +105,15 @@ export default function Home() {
     } finally {
       setIsFindingArticle(false);
     }
-  }, [begin]);
+  }, []);
+
+  const beginPendingArticle = useCallback(() => {
+    if (!pendingArticle) return;
+    setText(pendingArticle.text);
+    setSourceTitle(pendingArticle.title);
+    setSourceUrl(pendingArticle.url);
+    begin(pendingArticle.text);
+  }, [begin, pendingArticle]);
 
   const toggle = useCallback(() => {
     if (index >= words.length - 1) setIndex(0);
@@ -125,10 +151,7 @@ export default function Home() {
       <header className="topbar">
         <button className="brand" onClick={reset} aria-label="Rapid home"><span>R</span>APID</button>
         <div className="eyebrow">RSVP READER</div>
-        {reading && <div className="top-actions">
-          {sourceTitle && <button className="text-button" disabled={isFindingArticle} onClick={loadRandomArticle}>{isFindingArticle ? "Finding…" : "Another article"}</button>}
-          <button className="text-button" onClick={reset}>New text <span>↗</span></button>
-        </div>}
+        {reading && <div className="top-actions"><button className="text-button" onClick={reset}>Browse or paste <span>↗</span></button></div>}
       </header>
 
       {!reading ? (
@@ -140,12 +163,29 @@ export default function Home() {
           </div>
 
           <div className="composer">
-            <div className="composer-label"><label htmlFor="source">Paste your text</label><span>{text.trim() ? text.trim().split(/\s+/).length : 0} words</span></div>
-            <textarea id="source" value={text} onChange={(event) => { setText(event.target.value); setSourceTitle(""); setSourceUrl(""); }} placeholder="Drop in an article, notes, or anything you want to read…" autoFocus />
+            <div className="composer-label"><span>Choose your reading</span><span>{text.trim() ? text.trim().split(/\s+/).length : 0} words</span></div>
+            <section className={pendingArticle ? "article-preview" : "article-discovery"} aria-live="polite">
+              {pendingArticle ? <>
+                <p className="discovery-kicker">Random find / Wikipedia</p>
+                <h2>{pendingArticle.title}</h2>
+                <p className="preview-copy">{pendingArticle.preview}</p>
+                <p className="preview-meta">Approx. {pendingArticle.wordCount.toLocaleString()} words <span>·</span> cleaned for reading</p>
+                <div className="preview-actions">
+                  <button className="preview-read" onClick={beginPendingArticle}>Read this article <span>→</span></button>
+                  <button className="preview-another" disabled={isFindingArticle} onClick={loadRandomArticle}>Find another</button>
+                </div>
+              </> : <>
+                <p className="discovery-kicker">Random find / Wikipedia</p>
+                <h2>Let curiosity<br />choose the subject.</h2>
+                <p>We’ll pull an unexpected article, clean it up, and give you a moment to decide.</p>
+                <button className="discovery-button" disabled={isFindingArticle} onClick={loadRandomArticle}>{isFindingArticle ? "Searching the archive…" : "Discover an article"} <span>→</span></button>
+              </>}
+            </section>
+            <div className="paste-label"><span>Or bring your own text</span><label htmlFor="source">Paste text</label></div>
+            <textarea id="source" value={text} onChange={(event) => { setText(event.target.value); setSourceTitle(""); setSourceUrl(""); setPendingArticle(null); }} placeholder="Drop in an article, notes, or anything you want to read…" autoFocus />
             <div className="composer-footer">
               <div className="composer-actions">
-                <button className="sample" onClick={() => { setText(SAMPLE); setSourceTitle(""); setSourceUrl(""); }}>Use sample text</button>
-                <button className="random" disabled={isFindingArticle} onClick={loadRandomArticle}>{isFindingArticle ? "Finding an article…" : "Random Wikipedia"}</button>
+                <button className="sample" onClick={() => { setText(SAMPLE); setSourceTitle(""); setSourceUrl(""); setPendingArticle(null); }}>Use sample text</button>
               </div>
               <button className="primary" disabled={!text.trim()} onClick={() => begin()}>Start reading <span>→</span></button>
             </div>
