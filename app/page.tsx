@@ -4,6 +4,19 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 const SAMPLE = `Reading doesn't have to mean slowing down. Rapid keeps your eyes in one place while the words find you. Paste an article, a report, or your own notes, choose a pace, and let your focus settle in.`;
 
+type WikipediaResponse = {
+  query?: { pages?: Record<string, { title?: string; extract?: string }> };
+};
+
+function sanitizeWikipediaText(value: string) {
+  return value
+    .replace(/\[[^\]]*\]/g, " ")
+    .replace(/={2,}[^=]+={2,}/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 15000);
+}
+
 function splitWord(word: string) {
   const coreStart = word.search(/[A-Za-z0-9]/);
   const coreEnd = Math.max(...Array.from(word).map((char, index) => /[A-Za-z0-9]/.test(char) ? index : -1));
@@ -20,6 +33,9 @@ export default function Home() {
   const [index, setIndex] = useState(0);
   const [wpm, setWpm] = useState(300);
   const [playing, setPlaying] = useState(false);
+  const [sourceTitle, setSourceTitle] = useState("");
+  const [isFindingArticle, setIsFindingArticle] = useState(false);
+  const [articleError, setArticleError] = useState("");
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const reading = words.length > 0;
   const current = words[index] || "";
@@ -38,7 +54,32 @@ export default function Home() {
     setPlaying(false);
     setWords([]);
     setIndex(0);
+    setSourceTitle("");
   }, []);
+
+  const loadRandomArticle = useCallback(async () => {
+    setIsFindingArticle(true);
+    setArticleError("");
+    try {
+      const response = await fetch(
+        "https://en.wikipedia.org/w/api.php?action=query&format=json&generator=random&grnnamespace=0&prop=extracts&explaintext=1&exsectionformat=plain&exchars=15000&origin=*",
+      );
+      if (!response.ok) throw new Error("Wikipedia is unavailable right now.");
+      const payload = (await response.json()) as WikipediaResponse;
+      const page = Object.values(payload.query?.pages ?? {})[0];
+      const cleanedText = sanitizeWikipediaText(page?.extract ?? "");
+      if (cleanedText.split(/\s+/).filter(Boolean).length < 12) {
+        throw new Error("That page was too short. Try another one.");
+      }
+      setText(cleanedText);
+      setSourceTitle(page?.title ?? "A random Wikipedia article");
+      begin(cleanedText);
+    } catch (error) {
+      setArticleError(error instanceof Error ? error.message : "Couldn’t load an article. Please try again.");
+    } finally {
+      setIsFindingArticle(false);
+    }
+  }, [begin]);
 
   const toggle = useCallback(() => {
     if (index >= words.length - 1) setIndex(0);
@@ -89,11 +130,15 @@ export default function Home() {
 
           <div className="composer">
             <div className="composer-label"><label htmlFor="source">Paste your text</label><span>{text.trim() ? text.trim().split(/\s+/).length : 0} words</span></div>
-            <textarea id="source" value={text} onChange={(event) => setText(event.target.value)} placeholder="Drop in an article, notes, or anything you want to read…" autoFocus />
+            <textarea id="source" value={text} onChange={(event) => { setText(event.target.value); setSourceTitle(""); }} placeholder="Drop in an article, notes, or anything you want to read…" autoFocus />
             <div className="composer-footer">
-              <button className="sample" onClick={() => setText(SAMPLE)}>Use sample text</button>
+              <div className="composer-actions">
+                <button className="sample" onClick={() => { setText(SAMPLE); setSourceTitle(""); }}>Use sample text</button>
+                <button className="random" disabled={isFindingArticle} onClick={loadRandomArticle}>{isFindingArticle ? "Finding an article…" : "Random Wikipedia"}</button>
+              </div>
               <button className="primary" disabled={!text.trim()} onClick={() => begin()}>Start reading <span>→</span></button>
             </div>
+            {articleError && <p className="article-error" role="alert">{articleError}</p>}
           </div>
           <div className="how"><span>01</span><p>Paste text</p><i>→</i><span>02</span><p>Set your pace</p><i>→</i><span>03</span><p>Press play</p></div>
         </section>
@@ -103,6 +148,7 @@ export default function Home() {
             <div><span className="meta-label">PACE</span><strong>{wpm} <small>WPM</small></strong></div>
             <div className="count"><span className="meta-label">PROGRESS</span><strong>{index + 1} <small>/ {words.length}</small></strong></div>
           </div>
+          {sourceTitle && <p className="article-title">Wikipedia / <span>{sourceTitle}</span></p>}
 
           <div className="word-stage" aria-live="polite" aria-atomic="true">
             <span className="guide top" />

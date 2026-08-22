@@ -1,6 +1,6 @@
 # Rapid
 
-A focused RSVP (Rapid Serial Visual Presentation) speed reader. Paste text, choose a pace from 100–900 words per minute, and read with a fixed optical anchor.
+A focused RSVP (Rapid Serial Visual Presentation) speed reader. Paste text or load a sanitised random Wikipedia article, choose a pace from 100–900 words per minute, and read with a fixed optical anchor.
 
 ## Run locally
 
@@ -19,4 +19,4 @@ Open [http://localhost:3000](http://localhost:3000).
 npm run build
 ```
 
-Rapid is front-end only. Pasted text stays in the browser and is never uploaded or stored.
+Rapid is front-end only. Pasted text stays in the browser and is never uploaded or stored. Random articles are fetched directly from Wikipedia, converted to plain text, and cleaned before reading.
