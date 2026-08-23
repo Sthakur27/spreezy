@@ -34,6 +34,9 @@ h1 em { font-weight:400; color:var(--red); }
 .topic-picker { position:relative; z-index:1; display:flex; flex-wrap:wrap; gap:7px; max-width:475px; margin:-5px 0 24px; }
 .topic-picker button { border:1px solid #77736b; border-radius:999px; padding:7px 10px; background:transparent; color:#e5e0d7; cursor:pointer; font:600 9px monospace; letter-spacing:.05em; text-transform:uppercase; }
 .topic-picker button:hover, .topic-picker button.active { border-color:var(--red); background:var(--red); color:#fff; }
+.article-length { position:relative; z-index:1; display:flex; align-items:center; gap:10px; margin:-5px 0 24px; color:#c9c3b7; font:600 9px monospace; letter-spacing:.12em; text-transform:uppercase; }
+.article-length select { appearance:none; min-height:32px; border:1px solid #77736b; border-radius:0; padding:0 28px 0 10px; background:#292926; color:var(--paper); cursor:pointer; font:600 10px monospace; letter-spacing:.04em; }
+.article-length select:focus { outline:2px solid var(--red); outline-offset:2px; }
 .discovery-button, .preview-read { position:relative; z-index:1; min-width:212px; height:45px; padding:0 15px; display:flex; align-items:center; justify-content:space-between; border:0; background:var(--red); color:#fff; cursor:pointer; font-size:12px; }
 .discovery-button:hover, .preview-read:hover { background:#c92d23; }
 .discovery-button:disabled { background:#7e372f; cursor:wait; }
@@ -113,6 +116,7 @@ kbd { border:1px solid var(--line); padding:2px 5px; border-radius:2px; color:#6
   textarea { height:190px; }
   .article-discovery, .article-preview { padding:24px 20px; }
   .topic-picker { margin-bottom:21px; }
+  .article-length { margin-bottom:21px; }
   .how { display:none; }
   .word-stage { height:250px; margin-top:22px; }
   .word { font-size:clamp(48px,15vw,76px); }

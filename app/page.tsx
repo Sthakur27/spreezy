@@ -14,6 +14,7 @@ const TOPICS = [
   ["nature", "Nature", "Category:Nature"],
   ["biography", "People", "Category:Biographies"],
 ] as const;
+const ARTICLE_LENGTHS = [200, 300, 600, 1200] as const;
 
 type WikipediaResponse = {
   query?: { pages?: Record<string, { title?: string; extract?: string }> };
@@ -42,6 +43,10 @@ function makePreview(value: string) {
   return sentence ?? `${value.slice(0, 420).trimEnd()}…`;
 }
 
+function limitWords(value: string, limit: number) {
+  return value.split(/\s+/).filter(Boolean).slice(0, limit).join(" ");
+}
+
 function splitWord(word: string) {
   const coreStart = word.search(/[A-Za-z0-9]/);
   const coreEnd = Math.max(...Array.from(word).map((char, index) => /[A-Za-z0-9]/.test(char) ? index : -1));
@@ -64,6 +69,7 @@ export default function Home() {
   const [isFindingArticle, setIsFindingArticle] = useState(false);
   const [articleError, setArticleError] = useState("");
   const [topic, setTopic] = useState<(typeof TOPICS)[number][0]>("any");
+  const [articleLength, setArticleLength] = useState<(typeof ARTICLE_LENGTHS)[number]>(300);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const reading = words.length > 0;
   const current = words[index] || "";
@@ -107,7 +113,7 @@ export default function Home() {
         if (articleResponse && !articleResponse.ok) throw new Error("Wikipedia is unavailable right now.");
         const articlePayload = articleResponse ? await articleResponse.json() as WikipediaResponse : payload;
         const page = articleResponse ? Object.values(articlePayload.query?.pages ?? {})[0] : candidate;
-        const cleanedText = sanitizeWikipediaText(page?.extract ?? "");
+        const cleanedText = limitWords(sanitizeWikipediaText(page?.extract ?? ""), articleLength);
         const wordCount = cleanedText.split(/\s+/).filter(Boolean).length;
         if (wordCount < MINIMUM_ARTICLE_WORDS) continue;
 
@@ -128,7 +134,7 @@ export default function Home() {
     } finally {
       setIsFindingArticle(false);
     }
-  }, [topic]);
+  }, [articleLength, topic]);
 
   const beginPendingArticle = useCallback(() => {
     if (!pendingArticle) return;
@@ -192,7 +198,7 @@ export default function Home() {
                 <p className="discovery-kicker">{pendingArticle.topic} / Wikipedia</p>
                 <h2>{pendingArticle.title}</h2>
                 <p className="preview-copy">{pendingArticle.preview}</p>
-                <p className="preview-meta">Approx. {pendingArticle.wordCount.toLocaleString()} words <span>·</span> cleaned for reading</p>
+                <p className="preview-meta">{pendingArticle.wordCount.toLocaleString()} word reading <span>·</span> cleaned for reading</p>
                 <div className="preview-actions">
                   <button className="preview-read" onClick={beginPendingArticle}>Read this article <span>→</span></button>
                   <button className="preview-another" disabled={isFindingArticle} onClick={loadRandomArticle}>Find another</button>
@@ -204,6 +210,12 @@ export default function Home() {
                 <p>We’ll pull an unexpected article, clean it up, and give you a moment to decide.</p>
                 <div className="topic-picker" aria-label="Wikipedia topic">
                   {TOPICS.map(([id, label]) => <button key={id} className={topic === id ? "active" : ""} onClick={() => setTopic(id)}>{label}</button>)}
+                </div>
+                <div className="article-length">
+                  <label htmlFor="article-length">Reading length</label>
+                  <select id="article-length" value={articleLength} onChange={(event) => setArticleLength(Number(event.target.value) as (typeof ARTICLE_LENGTHS)[number])}>
+                    {ARTICLE_LENGTHS.map((length) => <option key={length} value={length}>{length} words</option>)}
+                  </select>
                 </div>
                 <button className="discovery-button" disabled={isFindingArticle} onClick={loadRandomArticle}>{isFindingArticle ? "Searching the archive…" : "Discover an article"} <span>→</span></button>
               </>}
