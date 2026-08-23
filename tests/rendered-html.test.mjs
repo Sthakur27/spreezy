@@ -22,6 +22,8 @@ test("builds a Vercel-ready Rapid reader", async () => {
   assert.match(app, /Back to topics/);
   assert.match(app, /Reading length/);
   assert.match(app, /\[200, 300, 600, 1200\]/);
+  assert.match(app, /rapid:wpm/);
+  assert.match(app, /rapid:article-length/);
   assert.match(app, /Wikipedia topic lookup/);
   assert.match(app, /Category:Visual_arts/);
 });

@@ -47,6 +47,16 @@ function limitWords(value: string, limit: number) {
   return value.split(/\s+/).filter(Boolean).slice(0, limit).join(" ");
 }
 
+function savedNumber(key: string, fallback: number, isValid: (value: number) => boolean) {
+  if (typeof window === "undefined") return fallback;
+  try {
+    const value = Number(window.localStorage.getItem(key));
+    return isValid(value) ? value : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
 function splitWord(word: string) {
   const coreStart = word.search(/[A-Za-z0-9]/);
   const coreEnd = Math.max(...Array.from(word).map((char, index) => /[A-Za-z0-9]/.test(char) ? index : -1));
@@ -61,7 +71,7 @@ export default function Home() {
   const [text, setText] = useState("");
   const [words, setWords] = useState<string[]>([]);
   const [index, setIndex] = useState(0);
-  const [wpm, setWpm] = useState(300);
+  const [wpm, setWpm] = useState(() => savedNumber("rapid:wpm", 300, (value) => value >= 100 && value <= 900));
   const [playing, setPlaying] = useState(false);
   const [sourceTitle, setSourceTitle] = useState("");
   const [sourceUrl, setSourceUrl] = useState("");
@@ -69,12 +79,20 @@ export default function Home() {
   const [isFindingArticle, setIsFindingArticle] = useState(false);
   const [articleError, setArticleError] = useState("");
   const [topic, setTopic] = useState<(typeof TOPICS)[number][0]>("any");
-  const [articleLength, setArticleLength] = useState<(typeof ARTICLE_LENGTHS)[number]>(300);
+  const [articleLength, setArticleLength] = useState<(typeof ARTICLE_LENGTHS)[number]>(() => savedNumber("rapid:article-length", 300, (value) => ARTICLE_LENGTHS.includes(value as (typeof ARTICLE_LENGTHS)[number])) as (typeof ARTICLE_LENGTHS)[number]);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const reading = words.length > 0;
   const current = words[index] || "";
   const parts = useMemo(() => splitWord(current), [current]);
   const progress = words.length ? ((index + 1) / words.length) * 100 : 0;
+
+  useEffect(() => {
+    try { window.localStorage.setItem("rapid:wpm", String(wpm)); } catch { /* Browser storage is optional. */ }
+  }, [wpm]);
+
+  useEffect(() => {
+    try { window.localStorage.setItem("rapid:article-length", String(articleLength)); } catch { /* Browser storage is optional. */ }
+  }, [articleLength]);
 
   const begin = useCallback((source = text) => {
     const next = source.trim().split(/\s+/).filter(Boolean);
