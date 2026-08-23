@@ -31,6 +31,9 @@ h1 em { font-weight:400; color:var(--red); }
 .article-discovery h2, .article-preview h2 { position:relative; z-index:1; margin:0; font:500 clamp(29px,3.3vw,47px)/.93 Georgia,serif; letter-spacing:-.055em; }
 .article-discovery h2 { max-width:440px; }
 .article-discovery > p:not(.discovery-kicker) { position:relative; z-index:1; max-width:385px; margin:17px 0 23px; color:#d5d0c7; font-size:13px; line-height:1.5; }
+.topic-picker { position:relative; z-index:1; display:flex; flex-wrap:wrap; gap:7px; max-width:475px; margin:-5px 0 24px; }
+.topic-picker button { border:1px solid #77736b; border-radius:999px; padding:7px 10px; background:transparent; color:#e5e0d7; cursor:pointer; font:600 9px monospace; letter-spacing:.05em; text-transform:uppercase; }
+.topic-picker button:hover, .topic-picker button.active { border-color:var(--red); background:var(--red); color:#fff; }
 .discovery-button, .preview-read { position:relative; z-index:1; min-width:212px; height:45px; padding:0 15px; display:flex; align-items:center; justify-content:space-between; border:0; background:var(--red); color:#fff; cursor:pointer; font-size:12px; }
 .discovery-button:hover, .preview-read:hover { background:#c92d23; }
 .discovery-button:disabled { background:#7e372f; cursor:wait; }
@@ -109,6 +112,7 @@ kbd { border:1px solid var(--line); padding:2px 5px; border-radius:2px; color:#6
   .composer { margin:48px 0 38px; box-shadow:6px 6px 0 var(--ink); }
   textarea { height:190px; }
   .article-discovery, .article-preview { padding:24px 20px; }
+  .topic-picker { margin-bottom:21px; }
   .how { display:none; }
   .word-stage { height:250px; margin-top:22px; }
   .word { font-size:clamp(48px,15vw,76px); }

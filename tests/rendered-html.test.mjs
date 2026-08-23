@@ -17,4 +17,6 @@ test("builds a Vercel-ready Rapid reader", async () => {
   assert.match(app, /Read this article/);
   assert.match(app, /aria-label="Reading position"/);
   assert.match(app, /en\.wikipedia\.org\/w\/api\.php/);
+  assert.match(app, /Category:Science/);
+  assert.match(app, /Wikipedia topic/);
 });

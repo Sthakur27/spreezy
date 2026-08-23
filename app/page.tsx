@@ -5,6 +5,15 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 const SAMPLE = `Reading doesn't have to mean slowing down. Rapid keeps your eyes in one place while the words find you. Paste an article, a report, or your own notes, choose a pace, and let your focus settle in.`;
 const MINIMUM_ARTICLE_WORDS = 80;
 const RANDOM_ARTICLE_URL = "https://en.wikipedia.org/w/api.php?action=query&format=json&generator=random&grnnamespace=0&prop=extracts&explaintext=1&exsectionformat=plain&exchars=15000&origin=*";
+const TOPICS = [
+  ["any", "Any topic", ""],
+  ["science", "Science", "Category:Science"],
+  ["history", "History", "Category:History"],
+  ["technology", "Technology", "Category:Technology"],
+  ["arts", "Arts", "Category:Arts"],
+  ["nature", "Nature", "Category:Nature"],
+  ["biography", "People", "Category:Biographies"],
+] as const;
 
 type WikipediaResponse = {
   query?: { pages?: Record<string, { title?: string; extract?: string }> };
@@ -16,6 +25,7 @@ type PendingArticle = {
   url: string;
   preview: string;
   wordCount: number;
+  topic: string;
 };
 
 function sanitizeWikipediaText(value: string) {
@@ -53,6 +63,7 @@ export default function Home() {
   const [pendingArticle, setPendingArticle] = useState<PendingArticle | null>(null);
   const [isFindingArticle, setIsFindingArticle] = useState(false);
   const [articleError, setArticleError] = useState("");
+  const [topic, setTopic] = useState<(typeof TOPICS)[number][0]>("any");
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const reading = words.length > 0;
   const current = words[index] || "";
@@ -80,11 +91,16 @@ export default function Home() {
     setIsFindingArticle(true);
     setArticleError("");
     try {
+      const selectedTopic = TOPICS.find(([id]) => id === topic) ?? TOPICS[0];
+      const categoryUrl = selectedTopic[2]
+        ? `https://en.wikipedia.org/w/api.php?action=query&format=json&generator=categorymembers&gcmtitle=${encodeURIComponent(selectedTopic[2])}&gcmnamespace=0&gcmtype=page&gcmlimit=50&prop=extracts&explaintext=1&exsectionformat=plain&exchars=15000&origin=*`
+        : RANDOM_ARTICLE_URL;
       for (let attempt = 0; attempt < 4; attempt += 1) {
-        const response = await fetch(RANDOM_ARTICLE_URL);
+        const response = await fetch(categoryUrl);
         if (!response.ok) throw new Error("Wikipedia is unavailable right now.");
         const payload = (await response.json()) as WikipediaResponse;
-        const page = Object.values(payload.query?.pages ?? {})[0];
+        const pages = Object.values(payload.query?.pages ?? {});
+        const page = pages[Math.floor(Math.random() * pages.length)];
         const cleanedText = sanitizeWikipediaText(page?.extract ?? "");
         const wordCount = cleanedText.split(/\s+/).filter(Boolean).length;
         if (wordCount < MINIMUM_ARTICLE_WORDS) continue;
@@ -96,6 +112,7 @@ export default function Home() {
           url: `https://en.wikipedia.org/wiki/${encodeURIComponent(title.replace(/ /g, "_"))}`,
           preview: makePreview(cleanedText),
           wordCount,
+          topic: selectedTopic[1],
         });
         return;
       }
@@ -105,7 +122,7 @@ export default function Home() {
     } finally {
       setIsFindingArticle(false);
     }
-  }, []);
+  }, [topic]);
 
   const beginPendingArticle = useCallback(() => {
     if (!pendingArticle) return;
@@ -166,7 +183,7 @@ export default function Home() {
             <div className="composer-label"><span>Choose your reading</span><span>{text.trim() ? text.trim().split(/\s+/).length : 0} words</span></div>
             <section className={pendingArticle ? "article-preview" : "article-discovery"} aria-live="polite">
               {pendingArticle ? <>
-                <p className="discovery-kicker">Random find / Wikipedia</p>
+                <p className="discovery-kicker">{pendingArticle.topic} / Wikipedia</p>
                 <h2>{pendingArticle.title}</h2>
                 <p className="preview-copy">{pendingArticle.preview}</p>
                 <p className="preview-meta">Approx. {pendingArticle.wordCount.toLocaleString()} words <span>·</span> cleaned for reading</p>
@@ -178,6 +195,9 @@ export default function Home() {
                 <p className="discovery-kicker">Random find / Wikipedia</p>
                 <h2>Let curiosity<br />choose the subject.</h2>
                 <p>We’ll pull an unexpected article, clean it up, and give you a moment to decide.</p>
+                <div className="topic-picker" aria-label="Wikipedia topic">
+                  {TOPICS.map(([id, label]) => <button key={id} className={topic === id ? "active" : ""} onClick={() => setTopic(id)}>{label}</button>)}
+                </div>
                 <button className="discovery-button" disabled={isFindingArticle} onClick={loadRandomArticle}>{isFindingArticle ? "Searching the archive…" : "Discover an article"} <span>→</span></button>
               </>}
             </section>
