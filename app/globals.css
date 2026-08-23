@@ -42,7 +42,7 @@ h1 em { font-weight:400; color:var(--red); }
 .preview-copy { max-width:620px; margin:17px 0 12px; color:#45423b; font:400 15px/1.55 Georgia,serif; }
 .preview-meta { margin:0; color:#6f6a61; font:600 9px monospace; text-transform:uppercase; letter-spacing:.1em; }
 .preview-meta span { margin:0 5px; color:var(--red); }
-.preview-actions { display:flex; align-items:center; gap:18px; margin-top:24px; }
+.preview-actions { display:flex; flex-wrap:wrap; align-items:center; gap:12px 18px; margin-top:24px; }
 .preview-another { border:0; background:none; padding:8px 0; color:var(--ink); cursor:pointer; text-decoration:underline; text-underline-offset:4px; font-size:12px; }
 .preview-another:disabled { color:#8e887e; cursor:wait; }
 .paste-label { height:38px; border-bottom:1px solid var(--line); padding:0 20px; display:flex; justify-content:space-between; align-items:center; color:#7b766e; font:600 9px monospace; text-transform:uppercase; letter-spacing:.1em; }

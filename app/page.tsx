@@ -93,14 +93,20 @@ export default function Home() {
     try {
       const selectedTopic = TOPICS.find(([id]) => id === topic) ?? TOPICS[0];
       const categoryUrl = selectedTopic[2]
-        ? `https://en.wikipedia.org/w/api.php?action=query&format=json&generator=categorymembers&gcmtitle=${encodeURIComponent(selectedTopic[2])}&gcmnamespace=0&gcmtype=page&gcmlimit=50&prop=extracts&explaintext=1&exsectionformat=plain&exchars=15000&origin=*`
+        ? `https://en.wikipedia.org/w/api.php?action=query&format=json&generator=categorymembers&gcmtitle=${encodeURIComponent(selectedTopic[2])}&gcmnamespace=0&gcmtype=page&gcmlimit=50&origin=*`
         : RANDOM_ARTICLE_URL;
       for (let attempt = 0; attempt < 4; attempt += 1) {
         const response = await fetch(categoryUrl);
         if (!response.ok) throw new Error("Wikipedia is unavailable right now.");
         const payload = (await response.json()) as WikipediaResponse;
         const pages = Object.values(payload.query?.pages ?? {});
-        const page = pages[Math.floor(Math.random() * pages.length)];
+        const candidate = pages[Math.floor(Math.random() * pages.length)];
+        const articleResponse = selectedTopic[2] && candidate?.title
+          ? await fetch(`https://en.wikipedia.org/w/api.php?action=query&format=json&titles=${encodeURIComponent(candidate.title)}&prop=extracts&explaintext=1&exsectionformat=plain&exchars=15000&origin=*`)
+          : null;
+        if (articleResponse && !articleResponse.ok) throw new Error("Wikipedia is unavailable right now.");
+        const articlePayload = articleResponse ? await articleResponse.json() as WikipediaResponse : payload;
+        const page = articleResponse ? Object.values(articlePayload.query?.pages ?? {})[0] : candidate;
         const cleanedText = sanitizeWikipediaText(page?.extract ?? "");
         const wordCount = cleanedText.split(/\s+/).filter(Boolean).length;
         if (wordCount < MINIMUM_ARTICLE_WORDS) continue;
@@ -190,6 +196,7 @@ export default function Home() {
                 <div className="preview-actions">
                   <button className="preview-read" onClick={beginPendingArticle}>Read this article <span>→</span></button>
                   <button className="preview-another" disabled={isFindingArticle} onClick={loadRandomArticle}>Find another</button>
+                  <button className="preview-another" onClick={() => setPendingArticle(null)}>Back to topics</button>
                 </div>
               </> : <>
                 <p className="discovery-kicker">Random find / Wikipedia</p>
