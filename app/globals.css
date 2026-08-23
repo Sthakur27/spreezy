@@ -79,10 +79,10 @@ footer { height:52px; border-top:1px solid var(--line); display:flex; align-item
 .article-title a { color:var(--ink); text-decoration:underline; text-underline-offset:4px; }
 .reader-error { width:min(900px,100%); margin:12px 0 -4px; color:#a6241c; font-size:12px; }
 .word-stage { width:min(1100px,100%); height:clamp(210px,34vh,330px); margin:25px 0 18px; border-top:1px solid var(--line); border-bottom:1px solid var(--line); display:flex; align-items:center; position:relative; overflow:hidden; }
-.word { width:100%; display:grid; grid-template-columns:1fr auto 1fr; align-items:baseline; font:500 clamp(56px,9vw,136px)/1 Georgia,serif; letter-spacing:0; white-space:pre; }
+.word { width:100%; display:grid; grid-template-columns:1fr auto 1fr; align-items:baseline; font:400 clamp(56px,9vw,136px)/1 Georgia,serif; font-kerning:none; font-synthesis:none; letter-spacing:0; white-space:pre; }
 .word .before { text-align:right; }
 .word .after { text-align:left; }
-.word b { color:var(--red); font-weight:500; padding:0 .025em; }
+.word b { color:var(--red); font-weight:400; margin:0 .035em; }
 .guide { position:absolute; left:50%; width:1px; height:18px; background:var(--red); transform:translateX(-50%); }
 .guide.top { top:0; }
 .guide.bottom { bottom:0; }
