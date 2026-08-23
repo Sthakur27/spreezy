@@ -210,7 +210,17 @@ export default function Home() {
             <span className="guide bottom" />
           </div>
 
-          <div className="progress-track"><span style={{ width: `${progress}%` }} /></div>
+          <div className="progress-track">
+            <input
+              aria-label="Reading position"
+              type="range"
+              min="0"
+              max={Math.max(words.length - 1, 0)}
+              value={index}
+              onChange={(event) => { setPlaying(false); setIndex(Number(event.target.value)); }}
+              style={{ "--range": `${progress}%` } as React.CSSProperties}
+            />
+          </div>
 
           <div className="controls">
             <button className="skip" aria-label="Previous word" onClick={() => { setPlaying(false); setIndex((value) => Math.max(0, value - 1)); }}>←</button>
