@@ -10,9 +10,9 @@ const TOPICS = [
   ["science", "Science", "Category:Science"],
   ["history", "History", "Category:History"],
   ["technology", "Technology", "Category:Technology"],
-  ["arts", "Arts", "Category:Arts"],
-  ["nature", "Nature", "Category:Nature"],
-  ["biography", "People", "Category:Biographies"],
+  ["arts", "Arts", "Category:Visual_arts"],
+  ["nature", "Nature", "Category:Natural_history"],
+  ["biography", "People", "Category:Living_people"],
 ] as const;
 const ARTICLE_LENGTHS = [200, 300, 600, 1200] as const;
 
@@ -101,11 +101,20 @@ export default function Home() {
       const categoryUrl = selectedTopic[2]
         ? `https://en.wikipedia.org/w/api.php?action=query&format=json&generator=categorymembers&gcmtitle=${encodeURIComponent(selectedTopic[2])}&gcmnamespace=0&gcmtype=page&gcmlimit=50&origin=*`
         : RANDOM_ARTICLE_URL;
+      const categoryResponse = selectedTopic[2] ? await fetch(categoryUrl) : null;
+      if (categoryResponse && !categoryResponse.ok) throw new Error("Wikipedia is unavailable right now.");
+      const categoryPayload = categoryResponse ? await categoryResponse.json() as WikipediaResponse : null;
+      const categoryPages = Object.values(categoryPayload?.query?.pages ?? {});
+      if (selectedTopic[2] && !categoryPages.length) {
+        console.warn("[Rapid] Wikipedia category returned no article pages", { topic: selectedTopic[1], category: selectedTopic[2] });
+        throw new Error(`Wikipedia couldn’t find articles in ${selectedTopic[1]}. Please choose another topic.`);
+      }
       for (let attempt = 0; attempt < 4; attempt += 1) {
-        const response = await fetch(categoryUrl);
-        if (!response.ok) throw new Error("Wikipedia is unavailable right now.");
-        const payload = (await response.json()) as WikipediaResponse;
-        const pages = Object.values(payload.query?.pages ?? {});
+        console.info("[Rapid] Wikipedia topic lookup", { topic: selectedTopic[1], attempt: attempt + 1 });
+        const response = selectedTopic[2] ? null : await fetch(categoryUrl);
+        if (response && !response.ok) throw new Error("Wikipedia is unavailable right now.");
+        const payload = response ? await response.json() as WikipediaResponse : categoryPayload;
+        const pages = selectedTopic[2] ? categoryPages : Object.values(payload?.query?.pages ?? {});
         const candidate = pages[Math.floor(Math.random() * pages.length)];
         const articleResponse = selectedTopic[2] && candidate?.title
           ? await fetch(`https://en.wikipedia.org/w/api.php?action=query&format=json&titles=${encodeURIComponent(candidate.title)}&prop=extracts&explaintext=1&exsectionformat=plain&exchars=15000&origin=*`)
@@ -115,7 +124,10 @@ export default function Home() {
         const page = articleResponse ? Object.values(articlePayload.query?.pages ?? {})[0] : candidate;
         const cleanedText = limitWords(sanitizeWikipediaText(page?.extract ?? ""), articleLength);
         const wordCount = cleanedText.split(/\s+/).filter(Boolean).length;
-        if (wordCount < MINIMUM_ARTICLE_WORDS) continue;
+        if (wordCount < MINIMUM_ARTICLE_WORDS) {
+          console.warn("[Rapid] Wikipedia candidate was too short", { topic: selectedTopic[1], title: page?.title, wordCount });
+          continue;
+        }
 
         const title = page?.title ?? "A random Wikipedia article";
         setPendingArticle({
@@ -130,6 +142,7 @@ export default function Home() {
       }
       throw new Error("Couldn’t find a readable article. Please try again.");
     } catch (error) {
+      console.error("[Rapid] Wikipedia article lookup failed", { topic, error });
       setArticleError(error instanceof Error ? error.message : "Couldn’t load an article. Please try again.");
     } finally {
       setIsFindingArticle(false);
@@ -218,6 +231,7 @@ export default function Home() {
                   </select>
                 </div>
                 <button className="discovery-button" disabled={isFindingArticle} onClick={loadRandomArticle}>{isFindingArticle ? "Searching the archive…" : "Discover an article"} <span>→</span></button>
+                {articleError && <p className="discovery-error" role="alert">{articleError}</p>}
               </>}
             </section>
             <div className="paste-label"><span>Or bring your own text</span><label htmlFor="source">Paste text</label></div>
@@ -228,7 +242,6 @@ export default function Home() {
               </div>
               <button className="primary" disabled={!text.trim()} onClick={() => begin()}>Start reading <span>→</span></button>
             </div>
-            {articleError && <p className="article-error" role="alert">{articleError}</p>}
           </div>
           <div className="how"><span>01</span><p>Paste text</p><i>→</i><span>02</span><p>Set your pace</p><i>→</i><span>03</span><p>Press play</p></div>
         </section>

@@ -40,6 +40,7 @@ h1 em { font-weight:400; color:var(--red); }
 .discovery-button, .preview-read { position:relative; z-index:1; min-width:212px; height:45px; padding:0 15px; display:flex; align-items:center; justify-content:space-between; border:0; background:var(--red); color:#fff; cursor:pointer; font-size:12px; }
 .discovery-button:hover, .preview-read:hover { background:#c92d23; }
 .discovery-button:disabled { background:#7e372f; cursor:wait; }
+.discovery-error { position:relative; z-index:1; margin:13px 0 0; max-width:430px; color:#ff9f97; font-size:12px; line-height:1.4; }
 .article-preview { background:#ded9ce; border-bottom:1px solid var(--ink); }
 .article-preview h2 { max-width:620px; color:var(--ink); }
 .preview-copy { max-width:620px; margin:17px 0 12px; color:#45423b; font:400 15px/1.55 Georgia,serif; }
