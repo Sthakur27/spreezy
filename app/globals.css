@@ -3,6 +3,7 @@
 :root { --paper:#f3f0e9; --ink:#171714; --red:#e23b2f; --line:#c9c3b7; }
 * { box-sizing:border-box; }
 html, body { margin:0; min-height:100%; background:var(--paper); color:var(--ink); }
+html { -webkit-text-size-adjust:100%; text-size-adjust:100%; }
 body { font-family:Arial, Helvetica, sans-serif; }
 button, textarea, input { font:inherit; }
 button { color:inherit; }
@@ -121,6 +122,8 @@ kbd { border:1px solid var(--line); padding:2px 5px; border-radius:2px; color:#6
   .how { display:none; }
   .word-stage { height:250px; margin-top:22px; }
   .word { font-size:clamp(48px,15vw,76px); }
+  .word.long { font-size:clamp(38px,12vw,60px); }
+  .word.very-long { font-size:clamp(30px,9.6vw,48px); }
   .reader { padding-top:5vh; justify-content:flex-start; }
   .reader-top { margin-top:3vh; }
   .hint { display:none; }

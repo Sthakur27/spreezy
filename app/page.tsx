@@ -33,6 +33,7 @@ function sanitizeWikipediaText(value: string) {
   return value
     .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, " ")
     .replace(/\[[^\]]*\]/g, " ")
+    .replace(/[^\p{L}\p{N}\s,.!?]/gu, " ")
     .replace(/\s+/g, " ")
     .trim()
     .slice(0, 15000);
@@ -84,6 +85,8 @@ export default function Home() {
   const reading = words.length > 0;
   const current = words[index] || "";
   const parts = useMemo(() => splitWord(current), [current]);
+  const wordLength = Array.from(current).length;
+  const wordLengthClass = wordLength > 18 ? "very-long" : wordLength > 10 ? "long" : "";
   const progress = words.length ? ((index + 1) / words.length) * 100 : 0;
 
   useEffect(() => {
@@ -274,7 +277,7 @@ export default function Home() {
 
           <div className="word-stage" aria-live="polite" aria-atomic="true">
             <span className="guide top" />
-            <div className="word" aria-label={current}>
+            <div className={`word ${wordLengthClass}`} aria-label={current}>
               <span className="before">{parts.before}</span><b>{parts.focus}</b><span className="after">{parts.after}</span>
             </div>
             <span className="guide bottom" />
