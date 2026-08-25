@@ -14,6 +14,8 @@ test("builds a Vercel-ready Rapid reader", async () => {
   assert.match(app, /sanitizeWikipediaText/);
   assert.match(app, /\\p\{L\}/);
   assert.match(app, /wordLengthClass/);
+  assert.match(app, /setCountdown\(3\)/);
+  assert.match(app, /Starting in/);
   assert.match(app, /beginPendingArticle/);
   assert.match(app, /Discover an article/);
   assert.match(app, /Read this article/);

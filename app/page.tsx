@@ -74,6 +74,7 @@ export default function Home() {
   const [index, setIndex] = useState(0);
   const [wpm, setWpm] = useState(() => savedNumber("rapid:wpm", 300, (value) => value >= 100 && value <= 900));
   const [playing, setPlaying] = useState(false);
+  const [countdown, setCountdown] = useState<number | null>(null);
   const [sourceTitle, setSourceTitle] = useState("");
   const [sourceUrl, setSourceUrl] = useState("");
   const [pendingArticle, setPendingArticle] = useState<PendingArticle | null>(null);
@@ -102,11 +103,13 @@ export default function Home() {
     if (!next.length) return;
     setWords(next);
     setIndex(0);
-    setPlaying(true);
+    setPlaying(false);
+    setCountdown(3);
   }, [text]);
 
   const reset = useCallback(() => {
     setPlaying(false);
+    setCountdown(null);
     setWords([]);
     setIndex(0);
     setSourceTitle("");
@@ -182,6 +185,18 @@ export default function Home() {
     if (index >= words.length - 1) setIndex(0);
     setPlaying((value) => !value);
   }, [index, words.length]);
+
+  useEffect(() => {
+    if (countdown === null) return;
+    const countdownTimer = setTimeout(() => {
+      if (countdown > 1) setCountdown((value) => (value ?? 1) - 1);
+      else {
+        setCountdown(null);
+        setPlaying(true);
+      }
+    }, 850);
+    return () => clearTimeout(countdownTimer);
+  }, [countdown]);
 
   useEffect(() => {
     if (!playing || !reading) return;
@@ -277,9 +292,10 @@ export default function Home() {
 
           <div className="word-stage" aria-live="polite" aria-atomic="true">
             <span className="guide top" />
-            <div className={`word ${wordLengthClass}`} aria-label={current}>
-              <span className="before">{parts.before}</span><b>{parts.focus}</b><span className="after">{parts.after}</span>
-            </div>
+            {countdown !== null ? <div className="countdown" aria-label={`Starting in ${countdown}`}>{countdown}</div> :
+              <div className={`word ${wordLengthClass}`} aria-label={current}>
+                <span className="before">{parts.before}</span><b>{parts.focus}</b><span className="after">{parts.after}</span>
+              </div>}
             <span className="guide bottom" />
           </div>
 
@@ -296,9 +312,9 @@ export default function Home() {
           </div>
 
           <div className="controls">
-            <button className="skip" aria-label="Previous word" onClick={() => { setPlaying(false); setIndex((value) => Math.max(0, value - 1)); }}>←</button>
-            <button className="play" aria-label={playing ? "Pause" : "Play"} onClick={toggle}>{playing ? "Ⅱ" : "▶"}</button>
-            <button className="skip" aria-label="Next word" onClick={() => { setPlaying(false); setIndex((value) => Math.min(words.length - 1, value + 1)); }}>→</button>
+            <button className="skip" disabled={countdown !== null} aria-label="Previous word" onClick={() => { setPlaying(false); setIndex((value) => Math.max(0, value - 1)); }}>←</button>
+            <button className="play" disabled={countdown !== null} aria-label={playing ? "Pause" : "Play"} onClick={toggle}>{playing ? "Ⅱ" : "▶"}</button>
+            <button className="skip" disabled={countdown !== null} aria-label="Next word" onClick={() => { setPlaying(false); setIndex((value) => Math.min(words.length - 1, value + 1)); }}>→</button>
           </div>
 
           <div className="speed">
