@@ -16,6 +16,8 @@ test("builds a Vercel-ready Rapid reader", async () => {
   assert.match(app, /wordLengthClass/);
   assert.match(app, /setCountdown\(3\)/);
   assert.match(app, /Starting in/);
+  assert.match(app, /compressToEncodedURIComponent/);
+  assert.match(app, /Copy link/);
   assert.match(app, /beginPendingArticle/);
   assert.match(app, /Discover an article/);
   assert.match(app, /Read this article/);

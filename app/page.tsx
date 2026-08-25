@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { compressToEncodedURIComponent, decompressFromEncodedURIComponent } from "lz-string";
 
 const SAMPLE = `Reading doesn't have to mean slowing down. Rapid keeps your eyes in one place while the words find you. Paste an article, a report, or your own notes, choose a pace, and let your focus settle in.`;
 const MINIMUM_ARTICLE_WORDS = 80;
@@ -15,6 +16,8 @@ const TOPICS = [
   ["biography", "People", "Category:Living_people"],
 ] as const;
 const ARTICLE_LENGTHS = [200, 300, 600, 1200] as const;
+const SHARE_PARAM = "r";
+const MAX_SHARED_READING_LENGTH = 3500;
 
 type WikipediaResponse = {
   query?: { pages?: Record<string, { title?: string; extract?: string }> };
@@ -58,6 +61,18 @@ function savedNumber(key: string, fallback: number, isValid: (value: number) => 
   }
 }
 
+function makeReaderUrl(value: string) {
+  const encoded = compressToEncodedURIComponent(value);
+  if (encoded.length > MAX_SHARED_READING_LENGTH) return null;
+  const url = new URL(window.location.href);
+  url.hash = new URLSearchParams([[SHARE_PARAM, encoded]]).toString();
+  return url.toString();
+}
+
+function clearReaderUrl() {
+  if (typeof window !== "undefined" && window.location.hash) window.history.replaceState(null, "", window.location.pathname);
+}
+
 function splitWord(word: string) {
   const coreStart = word.search(/[A-Za-z0-9]/);
   const coreEnd = Math.max(...Array.from(word).map((char, index) => /[A-Za-z0-9]/.test(char) ? index : -1));
@@ -80,6 +95,7 @@ export default function Home() {
   const [pendingArticle, setPendingArticle] = useState<PendingArticle | null>(null);
   const [isFindingArticle, setIsFindingArticle] = useState(false);
   const [articleError, setArticleError] = useState("");
+  const [shareFeedback, setShareFeedback] = useState("");
   const [topic, setTopic] = useState<(typeof TOPICS)[number][0]>("any");
   const [articleLength, setArticleLength] = useState<(typeof ARTICLE_LENGTHS)[number]>(() => savedNumber("rapid:article-length", 300, (value) => ARTICLE_LENGTHS.includes(value as (typeof ARTICLE_LENGTHS)[number])) as (typeof ARTICLE_LENGTHS)[number]);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -98,14 +114,18 @@ export default function Home() {
     try { window.localStorage.setItem("rapid:article-length", String(articleLength)); } catch { /* Browser storage is optional. */ }
   }, [articleLength]);
 
-  const begin = useCallback((source = text) => {
+  const begin = useCallback((source: string) => {
     const next = source.trim().split(/\s+/).filter(Boolean);
     if (!next.length) return;
+    try { window.localStorage.setItem("rapid:current-text", source); } catch { /* Browser storage is optional. */ }
+    const readerUrl = makeReaderUrl(source);
+    if (readerUrl) window.history.replaceState(null, "", readerUrl);
+    setShareFeedback(readerUrl ? "" : "This reading is saved on this device, but is too long for a reliable share link.");
     setWords(next);
     setIndex(0);
     setPlaying(false);
     setCountdown(3);
-  }, [text]);
+  }, []);
 
   const reset = useCallback(() => {
     setPlaying(false);
@@ -115,7 +135,37 @@ export default function Home() {
     setSourceTitle("");
     setSourceUrl("");
     setPendingArticle(null);
+    setShareFeedback("");
+    clearReaderUrl();
   }, []);
+
+  const copyReaderLink = useCallback(async () => {
+    const readerUrl = makeReaderUrl(words.join(" "));
+    if (!readerUrl) {
+      setShareFeedback("This reading is saved on this device, but is too long for a reliable share link.");
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(readerUrl);
+      setShareFeedback("Reader link copied.");
+    } catch {
+      setShareFeedback("Couldn’t copy the link. Select it from your browser’s address bar instead.");
+    }
+  }, [words]);
+
+  useEffect(() => {
+    const encoded = new URLSearchParams(window.location.hash.slice(1)).get(SHARE_PARAM);
+    const sharedText = encoded ? decompressFromEncodedURIComponent(encoded) : null;
+    if (sharedText?.trim()) {
+      setText(sharedText);
+      begin(sharedText);
+      return;
+    }
+    try {
+      const savedText = window.localStorage.getItem("rapid:current-text");
+      if (savedText) setText(savedText);
+    } catch { /* Browser storage is optional. */ }
+  }, [begin]);
 
   const loadRandomArticle = useCallback(async () => {
     setIsFindingArticle(true);
@@ -229,7 +279,7 @@ export default function Home() {
       <header className="topbar">
         <button className="brand" onClick={reset} aria-label="Rapid home"><span>R</span>APID</button>
         <div className="eyebrow">RSVP READER</div>
-        {reading && <div className="top-actions"><button className="text-button" onClick={reset}>Browse or paste <span>↗</span></button></div>}
+        {reading && <div className="top-actions"><button className="text-button copy-link" onClick={copyReaderLink}>Copy link <span>↗</span></button><button className="text-button" onClick={reset}>Browse or paste <span>↗</span></button></div>}
       </header>
 
       {!reading ? (
@@ -271,12 +321,12 @@ export default function Home() {
               </>}
             </section>
             <div className="paste-label"><span>Or bring your own text</span><label htmlFor="source">Paste text</label></div>
-            <textarea id="source" value={text} onChange={(event) => { setText(event.target.value); setSourceTitle(""); setSourceUrl(""); setPendingArticle(null); }} placeholder="Drop in an article, notes, or anything you want to read…" autoFocus />
+            <textarea id="source" value={text} onChange={(event) => { setText(event.target.value); setSourceTitle(""); setSourceUrl(""); setPendingArticle(null); clearReaderUrl(); }} placeholder="Drop in an article, notes, or anything you want to read…" autoFocus />
             <div className="composer-footer">
               <div className="composer-actions">
-                <button className="sample" onClick={() => { setText(SAMPLE); setSourceTitle(""); setSourceUrl(""); setPendingArticle(null); }}>Use sample text</button>
+              <button className="sample" onClick={() => { setText(SAMPLE); setSourceTitle(""); setSourceUrl(""); setPendingArticle(null); clearReaderUrl(); }}>Use sample text</button>
               </div>
-              <button className="primary" disabled={!text.trim()} onClick={() => begin()}>Start reading <span>→</span></button>
+              <button className="primary" disabled={!text.trim()} onClick={() => begin(text)}>Start reading <span>→</span></button>
             </div>
           </div>
           <div className="how"><span>01</span><p>Paste text</p><i>→</i><span>02</span><p>Set your pace</p><i>→</i><span>03</span><p>Press play</p></div>
@@ -289,6 +339,7 @@ export default function Home() {
           </div>
           {sourceTitle && <p className="article-title">Wikipedia / {sourceUrl ? <a href={sourceUrl} target="_blank" rel="noreferrer">{sourceTitle} ↗</a> : <span>{sourceTitle}</span>}</p>}
           {articleError && <p className="reader-error" role="alert">{articleError}</p>}
+          {shareFeedback && <p className="reader-error" role="status">{shareFeedback}</p>}
 
           <div className="word-stage" aria-live="polite" aria-atomic="true">
             <span className="guide top" />
