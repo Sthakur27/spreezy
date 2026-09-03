@@ -2,6 +2,11 @@
 
 A focused RSVP (Rapid Serial Visual Presentation) speed reader. Paste text or load a sanitised random Wikipedia article, choose a pace from 100–900 words per minute, and read with a fixed optical anchor.
 
+
+<img width="1772" height="846" alt="image" src="https://github.com/user-attachments/assets/45cb7975-2256-4f66-bcfa-a89efe5d91b5" />
+<img width="1701" height="816" alt="image" src="https://github.com/user-attachments/assets/cf3c1d85-9b2b-4390-bcb6-a973eba76f54" />
+
+
 ## Run locally
 
 Requires Node.js 22.13 or newer.
